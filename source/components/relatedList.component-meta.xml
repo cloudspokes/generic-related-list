@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ApexComponent xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>21.0</apiVersion>
+    <description>Based on input parameters it will dynamically display a pageBlock that looks and behaves similar to a standard related list.</description>
+    <label>relatedList</label>
+</ApexComponent>

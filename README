@@ -1,0 +1,13 @@
+Generic Related List Visualforce Component
+
+URL: http://www.cloudspokes.com/challenge_detail.html?contestID=169
+Blog: http://blog.cloudspokes.com/2011/04/generic-related-list-visualforce.html
+Challenge end date: Fri Apr 15 01:00:00 GMT 2011
+
+Description
+===========
+Create a “generic related list” Visualforce component that can be configured and dropped into a Visualforce page. There are many times on a salesforce.com project when we find the need to create a custom related list to add to a page layout and we find ourselves essentially performing the same task repeatedly. We’d like this component to be as customizable as possible by using Custom Settings or some other way to store metadata needed to generate the related list if possible.
+
+Requirements
+============
+<p>Create a Visualforce component based upon the following requirements for input the parameters. There may be more parameters needed then the ones below so feel free add as many as needed.</p> <ul><li>- Object Name (in our case &quot;Opportunity&quot;)</li><li>- Collection of field meta data: (will display as columns on the list)</li><li> --- field name (string)</li><li> --- sortable (true/false)</li><li> --- sort direction (asc/desc)</li><li> --- sort order (int)</li><li>- Where clause - a string that is applied to the dynamically generated SOQL (e.g., “Active__c = true”). Make sure you prevent SOQL injections.</li><li>Component should provide a function to determine how many rows it is displaying.</li><li>- Component should provide paging if resultset is beyond a certain number of records.  It will need a parameter to determine how many rows the data table should display.  For example, page after 5, 10, 25, 50 results.</li></ul> <p><br>The components can use either a standard controller, custom controller or controller extension.</p>

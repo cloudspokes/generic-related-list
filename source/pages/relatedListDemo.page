@@ -1,0 +1,10 @@
+<apex:page StandardController="Account" extensions="RelatedListDemoController">
+    <apex:form >
+        Enter Account:
+        <apex:inputField value="{!opp.AccountId}"/>
+        <apex:commandButton value="Load Related List" action="{!loadList}"/> 
+
+        <c:relatedList objectName="Opportunity" fieldsCSV="Name,CloseDate,Amount" pageSize="3" parentFieldId="{!Account.Id}" parentFieldName="AccountId" orderByFieldName="Amount" urlForNewRecord="{!URLFOR($Action.Opportunity.New,null)}"/>
+
+    </apex:form>  
+</apex:page>

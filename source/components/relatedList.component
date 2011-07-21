@@ -1,0 +1,177 @@
+<apex:component controller="RelatedListController" allowDML="true">
+	<apex:attribute name="fieldsCSV" type="String" assignTo="{!fieldsCSV}" description="Comma separated list of API field names that will be displayed in the relatedList. If defined, this will override the fieldsList attribute."/> 
+	<apex:attribute name="fieldsList" type="List" assignTo="{!fieldsList}" description="List collection variable containing the API field names that will be displayed in the related list."/>
+   	<apex:attribute name="filter" type="string" assignTo="{!filter}" description="Additional filter criteria applied to the objects returned. This shoud not start with 'where' keyworld, simply 'Active = true AND ...'."/> 
+	<apex:attribute name="hideActionLinks" type="Boolean" description="If set to true this will hide the Action links in the first column."/>
+	<apex:attribute name="hideButtons" type="Boolean" description="Hide the New button, button will only be displayed if current user has create permission on this object."/>
+	<apex:attribute name="objectName" type="String" assignTo="{!objectName}" description="The API name of the object representing this related list" required="true"/>
+	<apex:attribute name="orderByFieldName" type="String" assignTo="{!orderByFieldName}" description="List of records will be ordered by this field on initial load of the related list."/>
+	<apex:attribute name="pageSize" type="Integer" assignTo="{!pageSize}" description="Sets the number of records in each page set."/>
+	<apex:attribute name="parentFieldId" type="Id" assignTo="{!parentFieldId}" description="The 15 or 18 digit Id of the parent record for this related list." required="true"/>
+	<apex:attribute name="parentFieldName" type="String" assignTo="{!parentFieldName}" description="The API name of the relationship field for the related list. For example: AccountId on Opportunity object." required="true"/>
+	<apex:attribute name="sortDirection" type="String" assignTo="{!sortDirection}" description="Initial sort order of the related list on load. Valid values are 'asc' and 'desc'."/>
+	<!-- Relative URLS using the '$Action.' notation cannot be dynamic as there is no way to merge the object name in to the Action method, this must be defined by user of this component -->
+	<apex:attribute name="urlForNewRecord" type="String" description="Please define the URL for new record creation. For example: '{!URLFOR($Action.Opportunity.New,null)}'." required="true"/>
+
+	<apex:pageBlock title="{!objectDescribe.LabelPlural}" mode="detail" id="pageBlock">
+		<apex:pageBlockButtons location="top" rendered="{!IF(hideButtons,false,true)}">
+			<apex:outputLink value="{!urlForNewRecord}" rendered="{!showNewButton}" styleClass="btn newButton">New {!objectDescribe.label}</apex:outputLink>
+		</apex:pageBlockButtons>
+		
+		<!-- Output error/warning messages here -->
+    	<apex:pageMessages />
+		
+		<!-- Only show table if there are records returned -->
+		<apex:pageBlockTable value="{!records}" var="r" rendered="{!OR(NOT(ISNULL(records)),records.size > 0)}">
+			<apex:column headerValue="Action" rendered="{!IF(hideActionLinks,false,true)}" styleClass="actionColumn">
+				<apex:outputLink value="/{!r.Id}/e?retURL={!$CurrentPage.url}" styleClass="actionLink">Edit</apex:outputLink> |&nbsp;
+				<apex:commandLink value="Del" onclick="if(!confirm('Are you sure?')) return false;" action="{!deleteRecord}" rerender="pageBlock" styleClass="actionLink">
+					<apex:param name="deleteRecordId" assignTo="{!deleteRecordId}" value="{!r.id}"/>
+				</apex:commandLink>
+			</apex:column>
+			
+			<!-- Loop through list of field names to dynamically render the correct columns -->
+			<apex:repeat value="{!fieldNames}" var="fld">
+				<!-- Set correct style alignment based on values stored in fieldAlignMap -->
+				<apex:column headerClass="{!fieldAlignMap[fld]}" styleClass="{!fieldAlignMap[fld]}">
+					<apex:facet name="header">
+						<apex:outputPanel layout="block" styleClass="clickableHeader">
+							<!-- Add action to support to header so the entire header is clickable  -->
+							<apex:actionSupport event="onclick" action="{!sortByField}" rerender="pageBlock">
+								<apex:param name="sortByField" value="{!fld}" assignTo="{!sortByField}"/>
+							</apex:actionSupport>
+							
+							<!-- Display header value valued on nameLabelMap ie: (AccountId -> Acount) -->
+							<apex:outputText value="{!nameLabelMap[fld]}"/>
+							
+							<!-- Render the correct asc desc arrows based on current sort defined by user clicks on header -->
+							<apex:outputPanel id="directionIcon" rendered="{!sortByField = fld}">
+								<apex:image styleClass="imageDesc" value="/s.gif" rendered="{!fieldSortDirectionMap[fld] = 'desc'}"/>
+								<apex:image styleClass="imageAsc" value="/s.gif" rendered="{!fieldSortDirectionMap[fld] = 'asc'}"/>
+							</apex:outputPanel>
+						</apex:outputPanel>
+					</apex:facet>
+					<apex:outputField value="{!r[fld]}"/>
+				</apex:column>
+			</apex:repeat> 
+		</apex:pageBlockTable> 
+		
+		<!-- Show notice if related list has no records -->
+		<apex:outputPanel layout="block" styleClass="noRecordsFound" rendered="{!records.size == 0}">
+			No records to display
+		</apex:outputPanel>
+
+		<!-- Add pagination toolbar to bottom of table if pageSize is defined -->
+		<apex:outputPanel layout="block" styleClass="paginatorWrap" rendered="{!AND(records.size > 0, NOT(ISNULL(pageSize)))}">
+			<div class="paginator">
+				<span class="prevNextLinks">
+					<!-- First Button -->
+					<span class="prevNext">
+						<!-- Show first button if page set has previous page-->
+						<apex:commandLink value="" action="{!ssc.first}" rendered="{!ssc.pageNumber != 1}" rerender="pageBlock" title="First">
+							<img class="first" src="/s.gif" alt="" />
+						</apex:commandLink>
+						
+						<!-- Show disabled first button page set is on page 1-->
+						<apex:outputPanel rendered="{!NOT(ssc.hasPrevious)}">
+							<img class="firstoff" src="/s.gif" alt="" />
+						</apex:outputPanel>
+					</span>
+					
+					<!-- Previous Button -->
+					<span class="prevNext">
+						<!-- Show previous button page set has previous page-->
+						<apex:commandLink value="" action="{!ssc.previous}" rendered="{!ssc.hasPrevious}" rerender="pageBlock">
+							<img class="prev" src="/s.gif" alt="" />Previous
+						</apex:commandLink>
+						
+						<!-- Show disabled first button page set is on page 1-->
+						<apex:outputPanel rendered="{!NOT(ssc.hasPrevious)}">
+							<img class="prevoff" src="/s.gif" alt="" />Previous
+						</apex:outputPanel>
+					</span>
+					
+					<!-- Next Button -->
+					<span class="prevNext">
+						<!-- Show next button if page set has next -->
+						<apex:commandLink value="" action="{!ssc.next}" rendered="{!ssc.hasNext}" rerender="pageBlock">
+							Next<img class="next" alt="Next" title="Next" src="/s.gif" />
+						</apex:commandLink>
+						
+						<!-- Show disabled next button if page set has no next -->
+						<apex:outputPanel rendered="{!NOT(ssc.hasNext)}">
+							Next<img class="nextOff" alt="Next" title="Next" src="/s.gif" />
+						</apex:outputPanel>
+					</span>
+					
+					<!-- Last Button -->
+					<span class="prevNext">
+						<!-- Show last button if page set has next -->
+						<apex:commandLink value="" action="{!ssc.last}" rendered="{!ssc.hasNext}" rerender="pageBlock" title="Last">
+							<img class="last" src="/s.gif" alt="" />
+						</apex:commandLink>
+						
+						<!-- Show disabled last button if page set has no next -->
+						<apex:outputPanel rendered="{!NOT(ssc.hasNext)}">
+							<img class="lastoff" src="/s.gif" alt="" />
+						</apex:outputPanel>
+					</span>
+				</span>
+				<span class="right">
+					<!-- allow user to input page number of page set for direct navigation -->
+					Page&nbsp;
+					<apex:inputText value="{!ssc.pageNumber}" styleClass="pageInput">
+						<apex:actionSupport event="onchange" rerender="pageBlock"/>
+					</apex:inputText>of {!CEILING(ssc.ResultSize / ssc.pageSize)}
+				</span>
+			</div>
+		</apex:outputPanel>
+	</apex:pageBlock>
+
+	<!-- Inline styles for sake of simplicity and review of this entry. Should be in external style sheet in production -->
+	<!-- Some styles reference salesforce.com img urls, also for simplicity of submission. Production use should probably store these 
+	imgs separately in static resources unless you are comfortable use sfdc resources -->
+	<style>
+		.alignLeft{
+			text-align: left;
+		}
+		.alignRight{
+			text-align: right;
+		}
+		.clickableHeader{
+			cursor: pointer;
+			width: 100%;
+		}
+		.newButton{
+			margin: 1px;
+			padding: 0 3px;
+			text-decoration: none;
+		}
+		.paginatorWrap{
+			background: url("/img/alohaSkin/listFooter.png") repeat-x scroll 0 0 #F2F2F2;
+			border: 1px solid #EAEAEA;
+			background-color: #F3F3F3;
+			border-top: 1px solid #FFFFFF;
+			padding: 5px;
+		}
+		.noRecordsFound{
+			border: 1px solid #D4DADC;
+			padding: 4px;
+		}
+		.imageAsc{
+			background: url("/img/alohaSkin/sortArrows.png") no-repeat scroll left top transparent;
+			height: 8px;
+			margin: 0 5px;
+			vertical-align: -1px;
+			width: 7px;
+		}
+		.imageDesc{
+			background: url("/img/alohaSkin/sortArrows.png") no-repeat scroll 0px -12px transparent;
+			background-repeat: no-repeat;
+		   	height: 8px; 
+			margin: 0 5px;
+			vertical-align: -1px;
+			width: 7px;
+		}
+	</style>
+</apex:component>
